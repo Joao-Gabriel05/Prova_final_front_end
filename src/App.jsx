@@ -90,6 +90,21 @@ function App() {
 
   }
 
+  function excluir(id) {
+
+    fetch('http://localhost:8080/musica/' + id, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    }).then(response => { 
+      return response.json()
+    }).catch(error => {
+      alert(error)
+    })
+
+  }
+
   return (
     <>
       <div>
@@ -115,6 +130,8 @@ function App() {
               <th>Título</th>
               <th>Descrição</th>
               <th>Tempo</th>
+              <th>Usuário</th>
+              {roles.includes('ADMIN') && <th>Excluir</th> }
 
             </thead>
             <tbody>
@@ -123,6 +140,8 @@ function App() {
                       <td>{musica.titulo}</td>
                       <td>{musica.descricao}</td>
                       <td>{musica.tempo}</td>
+                      <td>{musica.email}</td>
+                      {roles.includes('ADMIN') && <td><button onClick={() => excluir(musica.id)}>Excluir</button></td> }
                     </tr>
                 })}
             </tbody>
