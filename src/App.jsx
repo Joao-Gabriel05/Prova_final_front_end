@@ -14,6 +14,7 @@ function App() {
   const [tempo, setTempo] = useState()
 
   const [musicas, setMusicas] = useState([])
+  const [roles, setRoles] = useState([])
 
   const {
     user,
@@ -27,6 +28,7 @@ function App() {
       const payload = JSON.parse(atob(token.split('.')[1]));
       console.log('Email:', payload['https://musica-insper.com/email'])
       console.log('Roles:', payload['https://musica-insper.com/roles'])
+      setRoles(payload['https://musica-insper.com/roles'])
 
       fetch('http://localhost:8080/musica', {
         method: 'GET',
@@ -98,12 +100,13 @@ function App() {
           <LogoutButton />
         </div>
 
-        <div>
+       {roles.includes('ADMIN') && <div>
           Título: <input type='text' onChange={e => setTitulo(e.target.value)} /><br/>
           Descrição: <input type='text' onChange={e => setDescricao(e.target.value)} /><br/>
           Tempo: <input type='text' onChange={e => setTempo(e.target.value)} /><br/>
           <button onClick={() => salvarMusica()}>Cadastrar</button>
         </div>
+        }
 
 
         <div>
