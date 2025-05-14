@@ -1,155 +1,188 @@
 import { useEffect, useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
-import LoginButton from './components/LoginButton';
 import LogoutButton from './components/LogoutButton'
-import { useAuth0 } from '@auth0/auth0-react';
+import { useAuth0 } from '@auth0/auth0-react'
 
 function App() {
   const [token, setToken] = useState(null)
-
-  const [titulo, setTitulo] = useState()
-  const [descricao, setDescricao] = useState()
-  const [tempo, setTempo] = useState()
-
-  const [musicas, setMusicas] = useState([])
+  const [titulo, setTitulo] = useState('')
+  const [descricao, setDescricao] = useState('')
+  const [prioridade, setPrioridade] = useState('')
+  const [tarefas, setTarefas] = useState([])
   const [roles, setRoles] = useState([])
 
   const {
     user,
     isAuthenticated,
     isLoading,
-    getAccessTokenSilently
-  } = useAuth0();
+    getAccessTokenSilently,
+    loginWithRedirect
+  } = useAuth0()
 
+  // Redireciona para login se não autenticado
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      loginWithRedirect()
+    }
+  }, [isLoading, isAuthenticated, loginWithRedirect])
+
+  // Ao obter token, pega lista de tarefas
   useEffect(() => {
     if (token) {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      console.log('Email:', payload['https://musica-insper.com/email'])
-      console.log('Roles:', payload['https://musica-insper.com/roles'])
-      setRoles(payload['https://musica-insper.com/roles'])
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      setRoles(payload['https://musica-insper.com/roles'] || [])
 
-      fetch('http://localhost:8080/musica', {
+      fetch('http://localhost:8081/tarefa', {
         method: 'GET',
         headers: {
           'Authorization': 'Bearer ' + token
         }
-      }).then(response => { 
-        return response.json()
-      }).then(data => { 
-        setMusicas(data)
-      }).catch(error => {
-        alert(error)
       })
+        .then(response => response.json())
+        .then(data => setTarefas(data))
+        .catch(error => alert('Erro ao listar tarefas: ' + error))
     }
-
   }, [token])
 
+  // Obtém token silenciosamente
   useEffect(() => {
     const fetchToken = async () => {
       try {
-        const accessToken = await getAccessTokenSilently();
-        setToken(accessToken);
+        const accessToken = await getAccessTokenSilently()
+        setToken(accessToken)
       } catch (e) {
-        console.error('Erro ao buscar token:', e);
+        console.error('Erro ao buscar token:', e)
       }
-    };
+    }
 
     if (isAuthenticated) {
-      fetchToken();
+      fetchToken()
     }
-  }, [isAuthenticated, getAccessTokenSilently]);
+  }, [isAuthenticated, getAccessTokenSilently])
 
   if (isLoading) {
-    return <div>Loading ...</div>;
+    return <div>Loading ...</div>
   }
 
-  if (!isAuthenticated) {
-    return <LoginButton />;
+  // Caso ainda não tenha token, mostra mensagem de redirecionamento
+  if (!token) {
+    return <div>Redirecionando para login...</div>
   }
 
-  function salvarMusica() {
-
-    fetch('http://localhost:8080/musica', {
+  // Função para criar tarefa (apenas ADMIN)
+  function salvarTarefa() {
+    fetch('http://localhost:8081/tarefa', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + token
       },
-      body: JSON.stringify({
-        'titulo': titulo,
-        'descricao': descricao,
-        'tempo': tempo
-      })
-    }).then(response => { 
-      return response.json()
-    }).catch(error => {
-      alert(error)
+      body: JSON.stringify({ titulo, descricao, prioridade })
     })
-
+      .then(response => response.json())
+      .then(() => {
+        // Limpa campos e recarrega a lista
+        setTitulo('')
+        setDescricao('')
+        setPrioridade('')
+        return fetch('http://localhost:8081/tarefa', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        })
+      })
+      .then(res => res.json())
+      .then(data => setTarefas(data))
+      .catch(error => alert('Erro ao salvar tarefa: ' + error))
   }
 
-  function excluir(id) {
-
-    fetch('http://localhost:8080/musica/' + id, {
+  // Função para excluir tarefa (apenas ADMIN)
+  function excluirTarefa(id) {
+    fetch(`http://localhost:8081/tarefa/${id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': 'Bearer ' + token
       }
-    }).then(response => { 
-      return response.json()
-    }).catch(error => {
-      alert(error)
     })
-
+      .then(() => setTarefas(prev => prev.filter(t => t.id !== id)))
+      .catch(error => alert('Erro ao excluir tarefa: ' + error))
   }
 
   return (
-    <>
-      <div>
-        <div>
-          <img src={user.picture} alt={user.name} />
-          <h2>{user.name}</h2>
-          <p>{user.email}</p>
-          <LogoutButton />
-        </div>
+    <div className="App">
+      <header>
+        <img src={user.picture} alt={user.name} />
+        <h2>{user.name}</h2>
+        <p>{user.email}</p>
+        <LogoutButton />
+      </header>
 
-       {roles.includes('ADMIN') && <div>
-          Título: <input type='text' onChange={e => setTitulo(e.target.value)} /><br/>
-          Descrição: <input type='text' onChange={e => setDescricao(e.target.value)} /><br/>
-          Tempo: <input type='text' onChange={e => setTempo(e.target.value)} /><br/>
-          <button onClick={() => salvarMusica()}>Cadastrar</button>
-        </div>
-        }
+      {roles.includes('ADMIN') && (
+        <section className="formulario">
+          <h3>Cadastrar Tarefa</h3>
+          <label>
+            Título:
+            <input
+              type="text"
+              value={titulo}
+              onChange={e => setTitulo(e.target.value)}
+            />
+          </label>
+          <label>
+            Descrição:
+            <input
+              type="text"
+              value={descricao}
+              onChange={e => setDescricao(e.target.value)}
+            />
+          </label>
+          <label>
+            Prioridade:
+            <select
+              value={prioridade}
+              onChange={e => setPrioridade(e.target.value)}
+            >
+              <option value="">Selecione</option>
+              <option value="BAIXA">Baixa</option>
+              <option value="MEDIA">Média</option>
+              <option value="ALTA">Alta</option>
+            </select>
+          </label>
+          <button onClick={salvarTarefa}>Cadastrar</button>
+        </section>
+      )}
 
-
-        <div>
-          <table>
-            <thead>
+      <section className="lista">
+        <h3>Lista de Tarefas</h3>
+        <table>
+          <thead>
+            <tr>
               <th>Título</th>
               <th>Descrição</th>
-              <th>Tempo</th>
+              <th>Prioridade</th>
               <th>Usuário</th>
-              {roles.includes('ADMIN') && <th>Excluir</th> }
-
-            </thead>
-            <tbody>
-                {musicas.map((musica, index) => {
-                return <tr key={index}>
-                      <td>{musica.titulo}</td>
-                      <td>{musica.descricao}</td>
-                      <td>{musica.tempo}</td>
-                      <td>{musica.email}</td>
-                      {roles.includes('ADMIN') && <td><button onClick={() => excluir(musica.id)}>Excluir</button></td> }
-                    </tr>
-                })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </>
-  );
+              {roles.includes('ADMIN') && <th>Ações</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {tarefas.map(t => (
+              <tr key={t.id}>
+                <td>{t.titulo}</td>
+                <td>{t.descricao}</td>
+                <td>{t.prioridade}</td>
+                <td>{t.email}</td>
+                {roles.includes('ADMIN') && (
+                  <td>
+                    <button onClick={() => excluirTarefa(t.id)}>
+                      Excluir
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  )
 }
 
-export default App;
+export default App
