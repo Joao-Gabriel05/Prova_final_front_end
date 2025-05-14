@@ -18,21 +18,19 @@ function App() {
     getAccessTokenSilently,
     loginWithRedirect
   } = useAuth0()
-
-  // Redireciona para login se não autenticado
+  
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       loginWithRedirect()
     }
   }, [isLoading, isAuthenticated, loginWithRedirect])
 
-  // Ao obter token, pega lista de tarefas
   useEffect(() => {
     if (token) {
       const payload = JSON.parse(atob(token.split('.')[1]))
       setRoles(payload['https://musica-insper.com/roles'] || [])
 
-      fetch('http://localhost:8081/tarefa', {
+      fetch('http://15.229.14.61:8081/tarefa', {
         method: 'GET',
         headers: {
           'Authorization': 'Bearer ' + token
@@ -44,7 +42,6 @@ function App() {
     }
   }, [token])
 
-  // Obtém token silenciosamente
   useEffect(() => {
     const fetchToken = async () => {
       try {
@@ -64,14 +61,12 @@ function App() {
     return <div>Loading ...</div>
   }
 
-  // Caso ainda não tenha token, mostra mensagem de redirecionamento
   if (!token) {
     return <div>Redirecionando para login...</div>
   }
 
-  // Função para criar tarefa (apenas ADMIN)
   function salvarTarefa() {
-    fetch('http://localhost:8081/tarefa', {
+    fetch('http://15.229.14.61:8081/tarefa', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -81,11 +76,10 @@ function App() {
     })
       .then(response => response.json())
       .then(() => {
-        // Limpa campos e recarrega a lista
         setTitulo('')
         setDescricao('')
         setPrioridade('')
-        return fetch('http://localhost:8081/tarefa', {
+        return fetch('http://15.229.14.61:8081/tarefa', {
           headers: { 'Authorization': 'Bearer ' + token }
         })
       })
@@ -94,9 +88,8 @@ function App() {
       .catch(error => alert('Erro ao salvar tarefa: ' + error))
   }
 
-  // Função para excluir tarefa (apenas ADMIN)
   function excluirTarefa(id) {
-    fetch(`http://localhost:8081/tarefa/${id}`, {
+    fetch(`http://15.229.14.61:8081/tarefa/${id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': 'Bearer ' + token
